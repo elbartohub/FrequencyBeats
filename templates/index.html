@@ -1,0 +1,2391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Frequency Beats</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .oscillator {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .oscillator:hover {
+            transform: translateY(-5px);
+        }
+
+        .oscillator h3 {
+            margin-bottom: 15px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .enable-checkbox {
+            width: 20px;
+            height: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .slider-container {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .slider-value {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 5px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 5px;
+            border-radius: 5px;
+        }
+
+        .wave-select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+
+        .waveform-monitor {
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .monitor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+        }
+
+        .monitor-header h3 {
+            color: #00ff00;
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .monitor-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.9em;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+
+        .monitor-controls label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .monitor-controls input, .monitor-controls select {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .monitor-display {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #00ff00;
+        }
+
+        #waveformMonitor {
+            display: block;
+            width: 100%;
+            height: 300px;
+            background: #000;
+        }
+
+        .monitor-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            background-image: 
+                linear-gradient(to right, rgba(0, 255, 0, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 255, 0, 0.1) 1px, transparent 1px),
+                linear-gradient(to right, rgba(0, 255, 0, 0.3) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 255, 0, 0.3) 1px, transparent 1px);
+            background-size: 
+                20px 20px,
+                20px 20px,
+                100px 100px,
+                100px 100px;
+        }
+
+        .master-controls {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .play-button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .play-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .play-button:active {
+            transform: translateY(0);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .stop-button {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .stop-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
+        }
+
+        .stop-button:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .controls-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .monitor-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .monitor-controls {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            #waveformMonitor {
+                height: 200px;
+            }
+        }
+
+        .frequency-display {
+            font-size: 1.2em;
+            color: #4CAF50;
+        }
+
+        .volume-display {
+            font-size: 1.1em;
+            color: #FF9800;
+        }
+
+        /* Frequency Controls Styling */
+        .frequency-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .frequency-input-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .frequency-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            padding: 5px 8px;
+            color: white;
+            font-size: 0.9em;
+            width: 80px;
+            text-align: center;
+        }
+
+        .frequency-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .frequency-unit {
+            font-size: 0.8em;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        /* ADSR Controls Styling */
+        .adsr-section {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 183, 77, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 183, 77, 0.2);
+        }
+
+        .adsr-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .adsr-control {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .adsr-control label {
+            font-size: 0.8em;
+            margin-bottom: 3px;
+            color: #FFB74D;
+        }
+
+        .mini-slider {
+            height: 6px !important;
+        }
+
+        .mini-slider::-webkit-slider-thumb {
+            width: 16px !important;
+            height: 16px !important;
+        }
+
+        .mini-slider::-moz-range-thumb {
+            width: 16px !important;
+            height: 16px !important;
+        }
+
+        .adsr-display {
+            font-size: 0.8em !important;
+            color: #FFB74D !important;
+            padding: 2px 5px !important;
+        }
+
+        /* Interactive ADSR Chart Styles */
+        .adsr-chart-container {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 183, 77, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 183, 77, 0.2);
+        }
+
+        .adsr-chart {
+            width: 100%;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            position: relative;
+            cursor: crosshair;
+            border: 1px solid rgba(255, 183, 77, 0.3);
+        }
+
+        .adsr-control-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #FFB74D;
+            border: 2px solid #FFF;
+            border-radius: 50%;
+            cursor: grab;
+            z-index: 10;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+        }
+
+        .adsr-control-point:hover {
+            background: #FF9800;
+            transform: scale(1.2);
+            cursor: grabbing;
+        }
+
+        .adsr-control-point.dragging {
+            cursor: grabbing;
+            transform: scale(1.3);
+            z-index: 20;
+        }
+
+        .adsr-line {
+            position: absolute;
+            height: 2px;
+            background: #FFB74D;
+            transform-origin: left center;
+        }
+
+        .adsr-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.7em;
+            color: #FFB74D;
+        }
+
+        .adsr-values {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+            font-size: 0.7em;
+        }
+
+        .adsr-value {
+            text-align: center;
+            padding: 3px;
+            background: rgba(255, 183, 77, 0.2);
+            border-radius: 3px;
+            color: #FFB74D;
+        }
+
+        /* Music Keyboard Styles */
+        .keyboard-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .keyboard-panel h3 {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .keyboard-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .keyboard {
+            position: relative;
+            display: flex;
+            background: #333;
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .key {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            transition: all 0.1s ease;
+        }
+
+        .white-key {
+            width: 30px;
+            height: 120px;
+            background: linear-gradient(to bottom, #fff 0%, #f5f5f5 100%);
+            border: 1px solid #ccc;
+            border-radius: 0 0 3px 3px;
+            margin-right: 1px;
+            z-index: 1;
+            color: #333;
+            padding-bottom: 5px;
+        }
+
+        .white-key:hover {
+            background: linear-gradient(to bottom, #f0f0f0 0%, #e0e0e0 100%);
+        }
+
+        .white-key.active {
+            background: linear-gradient(to bottom, #4CAF50 0%, #45a049 100%);
+            color: white;
+            transform: translateY(2px);
+        }
+
+        .black-key {
+            width: 20px;
+            height: 80px;
+            background: linear-gradient(to bottom, #333 0%, #000 100%);
+            border: 1px solid #000;
+            border-radius: 0 0 2px 2px;
+            position: absolute;
+            z-index: 2;
+            color: #fff;
+            padding-bottom: 5px;
+        }
+
+        .black-key:hover {
+            background: linear-gradient(to bottom, #555 0%, #222 100%);
+        }
+
+        .black-key.active {
+            background: linear-gradient(to bottom, #FF9800 0%, #F57C00 100%);
+            transform: translateY(2px);
+        }
+
+        .keyboard-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .keyboard-controls label {
+            font-size: 0.9em;
+            color: #FFB74D;
+        }
+
+        .keyboard-controls select {
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 183, 77, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .keyboard-controls input[type="range"] {
+            width: 100px;
+        }
+
+        #keyboardVolumeDisplay {
+            color: #FF9800;
+            font-weight: bold;
+        }
+
+        .keyboard-help {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 5px;
+            border: 1px solid rgba(76, 175, 80, 0.2);
+        }
+
+        .keyboard-help p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+
+        .keyboard-help strong {
+            color: #4CAF50;
+        }
+
+        .frequency-display-panel {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 5px;
+            border: 1px solid rgba(76, 175, 80, 0.2);
+            text-align: center;
+        }
+
+        .frequency-display-panel h4 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+            font-size: 1em;
+        }
+
+        .active-frequencies {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            min-height: 30px;
+            align-items: center;
+        }
+
+        .frequency-note {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            animation: noteAppear 0.2s ease-in;
+        }
+
+        .no-notes {
+            color: #999;
+            font-style: italic;
+            font-size: 0.9em;
+        }
+
+        .hold-button {
+            background: linear-gradient(135deg, #607D8B, #546E7A);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .hold-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .hold-button.active {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.4);
+        }
+
+        .hold-button.active:hover {
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.5);
+        }
+
+        @keyframes noteAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Audio Frequency Beats 🎵</h1>
+        
+        <div class="controls-panel">
+            <!-- Oscillator 1 -->
+            <div class="oscillator">
+                <h3>
+                    <input type="checkbox" id="osc1-enable" class="enable-checkbox">
+                    Oscillator 1
+                </h3>
+                
+                <div class="control-group">
+                    <label for="freq1">Frequency (Hz)</label>
+                    <div class="frequency-controls">
+                        <div class="slider-container">
+                            <input type="range" id="freq1" class="slider" min="5" max="21000" value="440" step="1">
+                            <div class="slider-value frequency-display" id="freq1-value">440 Hz</div>
+                        </div>
+                        <div class="frequency-input-container">
+                            <input type="number" id="freq1-input" class="frequency-input" min="5" max="21000" value="440" step="0.1">
+                            <span class="frequency-unit">Hz</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="wave1">Wave Type</label>
+                    <select id="wave1" class="wave-select">
+                        <option value="sine">Sine</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="saw">Sawtooth</option>
+                        <option value="square">Square</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="vol1">Volume</label>
+                    <div class="slider-container">
+                        <input type="range" id="vol1" class="slider" min="0" max="1" step="0.01" value="0.7">
+                        <div class="slider-value volume-display" id="vol1-value">70%</div>
+                    </div>
+                </div>
+                
+                <!-- ADSR Envelope Chart -->
+                <div class="adsr-chart-container">
+                    <h4 style="margin: 0 0 10px 0; color: #FFB74D; font-size: 0.9em;">🎛️ ADSR Envelope - Drag to Edit</h4>
+                    <div class="adsr-chart" id="adsr-chart-1">
+                        <!-- Control points will be added by JavaScript -->
+                    </div>
+                    <div class="adsr-labels">
+                        <span>Start</span>
+                        <span>Attack Peak</span>
+                        <span>Sustain</span>
+                        <span>End</span>
+                    </div>
+                    <div class="adsr-values">
+                        <div class="adsr-value">A: <span id="attack1-display">0.1s</span></div>
+                        <div class="adsr-value">D: <span id="decay1-display">0.1s</span></div>
+                        <div class="adsr-value">S: <span id="sustain1-display">2.0s</span></div>
+                        <div class="adsr-value">R: <span id="release1-display">0.3s</span></div>
+                    </div>
+                    <!-- Hidden inputs to maintain compatibility -->
+                    <input type="hidden" id="attack1" value="0.1">
+                    <input type="hidden" id="decay1" value="0.1">
+                    <input type="hidden" id="sustain1" value="2.0">
+                    <input type="hidden" id="release1" value="0.3">
+                </div>
+            </div>
+
+            <!-- Oscillator 2 -->
+            <div class="oscillator">
+                <h3>
+                    <input type="checkbox" id="osc2-enable" class="enable-checkbox">
+                    Oscillator 2
+                </h3>
+                
+                <div class="control-group">
+                    <label for="freq2">Frequency (Hz)</label>
+                    <div class="frequency-controls">
+                        <div class="slider-container">
+                            <input type="range" id="freq2" class="slider" min="5" max="21000" value="434" step="1">
+                            <div class="slider-value frequency-display" id="freq2-value">434 Hz</div>
+                        </div>
+                        <div class="frequency-input-container">
+                            <input type="number" id="freq2-input" class="frequency-input" min="5" max="21000" value="434" step="0.1">
+                            <span class="frequency-unit">Hz</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="wave2">Wave Type</label>
+                    <select id="wave2" class="wave-select">
+                        <option value="sine" selected>Sine</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="saw">Sawtooth</option>
+                        <option value="square">Square</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="vol2">Volume</label>
+                    <div class="slider-container">
+                        <input type="range" id="vol2" class="slider" min="0" max="1" step="0.01" value="0.7">
+                        <div class="slider-value volume-display" id="vol2-value">70%</div>
+                    </div>
+                </div>
+                
+                <!-- ADSR Envelope Chart -->
+                <div class="adsr-chart-container">
+                    <h4 style="margin: 0 0 10px 0; color: #FFB74D; font-size: 0.9em;">🎛️ ADSR Envelope - Drag to Edit</h4>
+                    <div class="adsr-chart" id="adsr-chart-2">
+                        <!-- Control points will be added by JavaScript -->
+                    </div>
+                    <div class="adsr-labels">
+                        <span>Start</span>
+                        <span>Attack Peak</span>
+                        <span>Sustain</span>
+                        <span>End</span>
+                    </div>
+                    <div class="adsr-values">
+                        <div class="adsr-value">A: <span id="attack2-display">0.1s</span></div>
+                        <div class="adsr-value">D: <span id="decay2-display">0.1s</span></div>
+                        <div class="adsr-value">S: <span id="sustain2-display">2.0s</span></div>
+                        <div class="adsr-value">R: <span id="release2-display">0.3s</span></div>
+                    </div>
+                    <!-- Hidden inputs to maintain compatibility -->
+                    <input type="hidden" id="attack2" value="0.1">
+                    <input type="hidden" id="decay2" value="0.1">
+                    <input type="hidden" id="sustain2" value="2.0">
+                    <input type="hidden" id="release2" value="0.3">
+                </div>
+            </div>
+
+            <!-- Oscillator 3 -->
+            <div class="oscillator">
+                <h3>
+                    <input type="checkbox" id="osc3-enable" class="enable-checkbox">
+                    Oscillator 3
+                </h3>
+                
+                <div class="control-group">
+                    <label for="freq3">Frequency (Hz)</label>
+                    <div class="frequency-controls">
+                        <div class="slider-container">
+                            <input type="range" id="freq3" class="slider" min="5" max="21000" value="880" step="1">
+                            <div class="slider-value frequency-display" id="freq3-value">880 Hz</div>
+                        </div>
+                        <div class="frequency-input-container">
+                            <input type="number" id="freq3-input" class="frequency-input" min="5" max="21000" value="880" step="0.1">
+                            <span class="frequency-unit">Hz</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="wave3">Wave Type</label>
+                    <select id="wave3" class="wave-select">
+                        <option value="sine" selected>Sine</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="saw">Sawtooth</option>
+                        <option value="square">Square</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="vol3">Volume</label>
+                    <div class="slider-container">
+                        <input type="range" id="vol3" class="slider" min="0" max="1" step="0.01" value="0.7">
+                        <div class="slider-value volume-display" id="vol3-value">70%</div>
+                    </div>
+                </div>
+                
+                <!-- ADSR Envelope Chart -->
+                <div class="adsr-chart-container">
+                    <h4 style="margin: 0 0 10px 0; color: #FFB74D; font-size: 0.9em;">🎛️ ADSR Envelope - Drag to Edit</h4>
+                    <div class="adsr-chart" id="adsr-chart-3">
+                        <!-- Control points will be added by JavaScript -->
+                    </div>
+                    <div class="adsr-labels">
+                        <span>Start</span>
+                        <span>Attack Peak</span>
+                        <span>Sustain</span>
+                        <span>End</span>
+                    </div>
+                    <div class="adsr-values">
+                        <div class="adsr-value">A: <span id="attack3-display">0.1s</span></div>
+                        <div class="adsr-value">D: <span id="decay3-display">0.1s</span></div>
+                        <div class="adsr-value">S: <span id="sustain3-display">2.0s</span></div>
+                        <div class="adsr-value">R: <span id="release3-display">0.3s</span></div>
+                    </div>
+                    <!-- Hidden inputs to maintain compatibility -->
+                    <input type="hidden" id="attack3" value="0.1">
+                    <input type="hidden" id="decay3" value="0.1">
+                    <input type="hidden" id="sustain3" value="2.0">
+                    <input type="hidden" id="release3" value="0.3">
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Playback Controls -->
+        <div class="master-controls" style="margin-bottom: 20px;">
+            <div class="button-group">
+                <button id="playButton" class="play-button">🎵 Play Audio</button>
+                <button id="stopButton" class="stop-button" style="display: none;">⏹️ Stop Audio</button>
+            </div>
+        </div>
+
+        <!-- Waveform Monitor -->
+        <div class="waveform-monitor">
+            <div class="monitor-header">
+                <h3>📺 Waveform Monitor</h3>
+                <div class="monitor-controls">
+                    <label>
+                        <input type="checkbox" id="monitorEnabled" checked> Enable Monitor
+                    </label>
+                    <label>
+                        Time Scale: 
+                        <select id="timeScale">
+                            <option value="0.1">100ms</option>
+                            <option value="0.2" selected>200ms</option>
+                            <option value="0.5">500ms</option>
+                            <option value="1.0">1000ms</option>
+                        </select>
+                    </label>
+                    <label>
+                        Update Rate: 
+                        <select id="updateRate">
+                            <option value="16">60 FPS</option>
+                            <option value="33" selected>30 FPS</option>
+                            <option value="50">20 FPS</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <div class="monitor-display">
+                <canvas id="waveformMonitor" width="800" height="300"></canvas>
+                <div class="monitor-grid"></div>
+            </div>
+        </div>
+
+        <!-- Music Keyboard -->
+        <div class="keyboard-panel">
+            <h3>🎹 3-Octave Music Keyboard</h3>
+            <div class="keyboard-container">
+                <div class="keyboard" id="keyboard">
+                    <!-- Keys will be generated by JavaScript -->
+                </div>
+            </div>
+            <div class="keyboard-controls">
+                <label for="keyboardOctave">Base Octave:</label>
+                <select id="keyboardOctave">
+                    <option value="2">C2-B4 (Low)</option>
+                    <option value="3" selected>C3-B5 (Mid)</option>
+                    <option value="4">C4-B6 (High)</option>
+                </select>
+                <label for="keyboardVolume">Keyboard Volume:</label>
+                <input type="range" id="keyboardVolume" min="0" max="1" step="0.01" value="1.0">
+                <span id="keyboardVolumeDisplay">100%</span>
+                <label for="updateRate">Waveform Update:</label>
+                <select id="updateRate">
+                    <option value="25">Real-time (25ms)</option>
+                    <option value="50" selected>Fast (50ms)</option>
+                    <option value="100">Standard (100ms)</option>
+                    <option value="250">Smooth (250ms)</option>
+                </select>
+                <button id="holdButton" class="hold-button" style="margin-left: 15px;">
+                    🔒 Hold: OFF
+                </button>
+            </div>
+            <div class="frequency-display-panel">
+                <h4>🎵 Current Playing Notes:</h4>
+                <div id="activeFrequencies" class="active-frequencies">
+                    <span class="no-notes">No notes playing</span>
+                </div>
+            </div>
+            <div class="keyboard-help">
+                <p><strong>🎹 How to Play:</strong></p>
+                <p>• <strong>Mouse:</strong> Click and hold keys to play notes</p>
+                <p>• <strong>Keyboard:</strong> Use ASDF... keys for white notes, WE... for black notes</p>
+                <p>• <strong>Hold Mode:</strong> Enable hold to sustain notes without keeping keys pressed</p>
+                <p>• <strong>Settings:</strong> Notes use the first enabled oscillator's waveform and ADSR</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for Web Audio API
+        let audioContext;
+        let oscillators = [];
+        let gainNodes = [];
+        let isPlaying = false;
+
+        // Waveform Monitor
+        let monitorCanvas;
+        let monitorCtx;
+        let monitorAnimationId;
+        let waveformData = [];
+        let monitorEnabled = true;
+
+        // Get oscillator data including active keyboard notes
+        function getOscillatorData(bypassADSR = false) {
+            const controlPanelData = [
+                {
+                    enabled: document.getElementById('osc1-enable').checked,
+                    frequency: parseFloat(document.getElementById('freq1').value) || parseFloat(document.getElementById('freq1-input').value) || 440,
+                    wave_type: document.getElementById('wave1').value,
+                    volume: parseFloat(document.getElementById('vol1').value),
+                    adsr: bypassADSR ? { attack: 0.001, decay: 0.001, sustain: 1.0, release: 0.001 } : {
+                        attack: parseFloat(document.getElementById('attack1').value),
+                        decay: parseFloat(document.getElementById('decay1').value),
+                        sustain: parseFloat(document.getElementById('sustain1').value),
+                        release: parseFloat(document.getElementById('release1').value)
+                    }
+                },
+                {
+                    enabled: document.getElementById('osc2-enable').checked,
+                    frequency: parseFloat(document.getElementById('freq2').value) || parseFloat(document.getElementById('freq2-input').value) || 434,
+                    wave_type: document.getElementById('wave2').value,
+                    volume: parseFloat(document.getElementById('vol2').value),
+                    adsr: bypassADSR ? { attack: 0.001, decay: 0.001, sustain: 1.0, release: 0.001 } : {
+                        attack: parseFloat(document.getElementById('attack2').value),
+                        decay: parseFloat(document.getElementById('decay2').value),
+                        sustain: parseFloat(document.getElementById('sustain2').value),
+                        release: parseFloat(document.getElementById('release2').value)
+                    }
+                },
+                {
+                    enabled: document.getElementById('osc3-enable').checked,
+                    frequency: parseFloat(document.getElementById('freq3').value) || parseFloat(document.getElementById('freq3-input').value) || 880,
+                    wave_type: document.getElementById('wave3').value,
+                    volume: parseFloat(document.getElementById('vol3').value),
+                    adsr: bypassADSR ? { attack: 0.001, decay: 0.001, sustain: 1.0, release: 0.001 } : {
+                        attack: parseFloat(document.getElementById('attack3').value),
+                        decay: parseFloat(document.getElementById('decay3').value),
+                        sustain: parseFloat(document.getElementById('sustain3').value),
+                        release: parseFloat(document.getElementById('release3').value)
+                    }
+                }
+            ];
+            
+            // Add currently playing keyboard notes
+            if (window.musicKeyboard && window.musicKeyboard.activeNotes.size > 0) {
+                const keyboardNotes = Array.from(window.musicKeyboard.activeNotes.values()).map(noteInfo => ({
+                    enabled: true,
+                    frequency: noteInfo.frequency,
+                    wave_type: 'sine', // Default wave type for keyboard notes
+                    volume: window.musicKeyboard.volume || 1.0,
+                    adsr: bypassADSR ? { attack: 0.001, decay: 0.001, sustain: 1.0, release: 0.001 } : 
+                          (noteInfo.adsr || { attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.3 })
+                }));
+                
+                return [...controlPanelData, ...keyboardNotes];
+            }
+            
+            return controlPanelData;
+        }
+
+        // Throttle function to limit API calls
+        let updateTimeout = null;
+        let isUpdating = false;
+        let updateThrottleRate = 50; // Default 50ms
+
+        // Update visualization (simplified - no charts)
+        async function updateVisualization() {
+            // This function is kept for compatibility but no longer does chart updates
+            // since Individual Waveforms and Frequency Spectrum have been removed
+            return;
+        }
+
+        // Initialize Waveform Monitor
+        function initWaveformMonitor() {
+            monitorCanvas = document.getElementById('waveformMonitor');
+            monitorCtx = monitorCanvas.getContext('2d');
+            
+            // Set canvas size
+            const rect = monitorCanvas.getBoundingClientRect();
+            monitorCanvas.width = rect.width * window.devicePixelRatio;
+            monitorCanvas.height = rect.height * window.devicePixelRatio;
+            monitorCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            // Start monitor animation
+            startWaveformMonitor();
+            
+            // Setup event listeners
+            document.getElementById('monitorEnabled').addEventListener('change', (e) => {
+                monitorEnabled = e.target.checked;
+                if (!monitorEnabled) {
+                    clearWaveformMonitor();
+                }
+            });
+        }
+
+        function startWaveformMonitor() {
+            if (monitorAnimationId) {
+                cancelAnimationFrame(monitorAnimationId);
+            }
+            
+            function animate() {
+                if (monitorEnabled) {
+                    updateWaveformMonitor();
+                }
+                
+                // Get update rate from control
+                const updateRate = parseInt(document.getElementById('updateRate').value) || 33;
+                setTimeout(() => {
+                    monitorAnimationId = requestAnimationFrame(animate);
+                }, updateRate);
+            }
+            
+            animate();
+        }
+
+        function generateWaveformData() {
+            const timeScale = parseFloat(document.getElementById('timeScale').value) || 0.2;
+            const sampleRate = 44100;
+            const samples = Math.floor(timeScale * sampleRate);
+            const data = new Float32Array(samples);
+            
+            // Check if there's any audio output
+            const hasKeyboardNotes = window.musicKeyboard && window.musicKeyboard.activeNotes.size > 0;
+            const isMainAudioPlaying = isPlaying; // Check if 'Play Audio' button is active
+            
+            // If no audio output (neither keyboard notes nor main audio playing), return zero waveform
+            if (!hasKeyboardNotes && !isMainAudioPlaying) {
+                // All values are already 0 in Float32Array, just return it
+                return data;
+            }
+            
+            // Get current oscillator settings - but only include them if main audio is playing
+            let oscillatorData = [];
+            
+            if (isMainAudioPlaying) {
+                // Include control panel oscillators only when Play Audio is active
+                const controlPanelData = [
+                    {
+                        enabled: document.getElementById('osc1-enable').checked,
+                        frequency: parseFloat(document.getElementById('freq1').value) || parseFloat(document.getElementById('freq1-input').value) || 440,
+                        wave_type: document.getElementById('wave1').value,
+                        volume: parseFloat(document.getElementById('vol1').value),
+                        adsr: {
+                            attack: parseFloat(document.getElementById('attack1').value),
+                            decay: parseFloat(document.getElementById('decay1').value),
+                            sustain: parseFloat(document.getElementById('sustain1').value),
+                            release: parseFloat(document.getElementById('release1').value)
+                        }
+                    },
+                    {
+                        enabled: document.getElementById('osc2-enable').checked,
+                        frequency: parseFloat(document.getElementById('freq2').value) || parseFloat(document.getElementById('freq2-input').value) || 434,
+                        wave_type: document.getElementById('wave2').value,
+                        volume: parseFloat(document.getElementById('vol2').value),
+                        adsr: {
+                            attack: parseFloat(document.getElementById('attack2').value),
+                            decay: parseFloat(document.getElementById('decay2').value),
+                            sustain: parseFloat(document.getElementById('sustain2').value),
+                            release: parseFloat(document.getElementById('release2').value)
+                        }
+                    },
+                    {
+                        enabled: document.getElementById('osc3-enable').checked,
+                        frequency: parseFloat(document.getElementById('freq3').value) || parseFloat(document.getElementById('freq3-input').value) || 880,
+                        wave_type: document.getElementById('wave3').value,
+                        volume: parseFloat(document.getElementById('vol3').value),
+                        adsr: {
+                            attack: parseFloat(document.getElementById('attack3').value),
+                            decay: parseFloat(document.getElementById('decay3').value),
+                            sustain: parseFloat(document.getElementById('sustain3').value),
+                            release: parseFloat(document.getElementById('release3').value)
+                        }
+                    }
+                ];
+                oscillatorData = [...controlPanelData];
+            }
+            
+            // Always include keyboard notes (regardless of Play Audio state)
+            if (hasKeyboardNotes) {
+                const keyboardNotes = Array.from(window.musicKeyboard.activeNotes.values()).map(noteInfo => ({
+                    enabled: true,
+                    frequency: noteInfo.frequency,
+                    wave_type: 'sine', // Default wave type for keyboard notes
+                    volume: window.musicKeyboard.volume || 1.0,
+                    adsr: noteInfo.adsr || { attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.3 }
+                }));
+                oscillatorData = [...oscillatorData, ...keyboardNotes];
+            }
+            
+            const currentTime = Date.now() / 1000; // Current time in seconds
+            
+            // Generate waveform based on current oscillator settings
+            for (let i = 0; i < samples; i++) {
+                const t = (i / sampleRate);
+                let amplitude = 0;
+                let activeCount = 0;
+                
+                oscillatorData.forEach(osc => {
+                    if (osc.enabled) {
+                        activeCount++;
+                        let wave = 0;
+                        
+                        // Generate waveform based on type
+                        const phase = 2 * Math.PI * osc.frequency * t;
+                        switch (osc.wave_type) {
+                            case 'sine':
+                                wave = Math.sin(phase);
+                                break;
+                            case 'triangle':
+                                wave = 2 * Math.asin(Math.sin(phase)) / Math.PI;
+                                break;
+                            case 'saw':
+                                wave = 2 * (osc.frequency * t - Math.floor(0.5 + osc.frequency * t));
+                                break;
+                            case 'square':
+                                wave = Math.sign(Math.sin(phase));
+                                break;
+                        }
+                        
+                        amplitude += wave * osc.volume;
+                    }
+                });
+                
+                // Normalize and apply master volume
+                if (activeCount > 0) {
+                    amplitude = amplitude / Math.max(1, activeCount) * 0.7; // Master volume
+                }
+                
+                data[i] = amplitude;
+            }
+            
+            return data;
+        }
+
+        function updateWaveformMonitor() {
+            if (!monitorCtx || !monitorEnabled) return;
+            
+            // Clear canvas
+            clearWaveformMonitor();
+            
+            // Generate current waveform data
+            const data = generateWaveformData();
+            
+            if (data.length === 0) return;
+            
+            // Get canvas dimensions
+            const width = monitorCanvas.width / window.devicePixelRatio;
+            const height = monitorCanvas.height / window.devicePixelRatio;
+            
+            // Draw waveform
+            monitorCtx.strokeStyle = '#00ff00';
+            monitorCtx.lineWidth = 2;
+            monitorCtx.lineCap = 'round';
+            monitorCtx.lineJoin = 'round';
+            
+            // Add glow effect
+            monitorCtx.shadowColor = '#00ff00';
+            monitorCtx.shadowBlur = 3;
+            
+            monitorCtx.beginPath();
+            
+            for (let i = 0; i < data.length; i++) {
+                const x = (i / data.length) * width;
+                const y = height / 2 - (data[i] * height / 2 * 0.8); // Scale to 80% of height
+                
+                if (i === 0) {
+                    monitorCtx.moveTo(x, y);
+                } else {
+                    monitorCtx.lineTo(x, y);
+                }
+            }
+            
+            monitorCtx.stroke();
+            
+            // Reset shadow
+            monitorCtx.shadowBlur = 0;
+            
+            // Draw center line
+            monitorCtx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+            monitorCtx.lineWidth = 1;
+            monitorCtx.beginPath();
+            monitorCtx.moveTo(0, height / 2);
+            monitorCtx.lineTo(width, height / 2);
+            monitorCtx.stroke();
+            
+            // Draw amplitude markers
+            monitorCtx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+            monitorCtx.font = '10px Courier New';
+            monitorCtx.textAlign = 'right';
+            
+            // Draw scale markers
+            const markers = ['+1', '+0.5', '0', '-0.5', '-1'];
+            for (let i = 0; i < markers.length; i++) {
+                const y = (i / (markers.length - 1)) * height;
+                monitorCtx.fillText(markers[i], width - 5, y + 3);
+            }
+        }
+
+        function clearWaveformMonitor() {
+            if (!monitorCtx) return;
+            
+            const width = monitorCanvas.width / window.devicePixelRatio;
+            const height = monitorCanvas.height / window.devicePixelRatio;
+            
+            // Clear with black background
+            monitorCtx.fillStyle = '#000';
+            monitorCtx.fillRect(0, 0, width, height);
+            
+            // Draw center line when cleared
+            monitorCtx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
+            monitorCtx.lineWidth = 1;
+            monitorCtx.beginPath();
+            monitorCtx.moveTo(0, height / 2);
+            monitorCtx.lineTo(width, height / 2);
+            monitorCtx.stroke();
+        }
+
+        // Initialize Web Audio API for real audio playback
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Play audio using Web Audio API
+        function playAudio() {
+            initAudio();
+            
+            // Stop any playing oscillators
+            stopAudio();
+            
+            const oscillatorData = getOscillatorData();
+            const masterGain = audioContext.createGain();
+            masterGain.connect(audioContext.destination);
+            masterGain.gain.value = 0.7; // Master volume - increased since oscillators are now at 100%
+            
+            oscillatorData.forEach((osc, index) => {
+                if (osc.enabled) {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.type = osc.wave_type;
+                    oscillator.frequency.value = osc.frequency;
+                    
+                    // Apply ADSR envelope
+                    const currentTime = audioContext.currentTime;
+                    const attackTime = osc.adsr.attack;
+                    const decayTime = osc.adsr.decay;
+                    const sustainLevel = osc.adsr.sustain * osc.volume;
+                    const releaseTime = osc.adsr.release;
+                    
+                    // Start at 0 volume
+                    gainNode.gain.setValueAtTime(0, currentTime);
+                    
+                    // Attack: ramp up to full volume
+                    gainNode.gain.linearRampToValueAtTime(osc.volume, currentTime + attackTime);
+                    
+                    // Decay: ramp down to sustain level
+                    gainNode.gain.linearRampToValueAtTime(sustainLevel, currentTime + attackTime + decayTime);
+                    
+                    // Sustain: hold at sustain level (will continue until stopped)
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    oscillator.start();
+                    // Don't set stop time - let it play continuously
+                    
+                    oscillators.push(oscillator);
+                    gainNodes.push(gainNode);
+                }
+            });
+            
+            isPlaying = true;
+            document.getElementById('playButton').style.display = 'none';
+            document.getElementById('stopButton').style.display = 'inline-block';
+        }
+
+        function stopAudio() {
+            if (!isPlaying) return;
+            
+            const currentTime = audioContext.currentTime;
+            const oscillatorData = getOscillatorData();
+            
+            // Apply release envelope to each gain node
+            gainNodes.forEach((gainNode, index) => {
+                if (gainNode && oscillatorData[index]) {
+                    const releaseTime = oscillatorData[index].adsr.release;
+                    // Cancel any scheduled changes and start release from current value
+                    gainNode.gain.cancelScheduledValues(currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0, currentTime + releaseTime);
+                }
+            });
+            
+            // Stop oscillators after release time
+            const maxReleaseTime = Math.max(...oscillatorData.filter(osc => osc.enabled).map(osc => osc.adsr.release));
+            
+            setTimeout(() => {
+                oscillators.forEach(osc => {
+                    try {
+                        osc.stop();
+                    } catch (e) {
+                        // Oscillator might already be stopped
+                    }
+                });
+                oscillators = [];
+                gainNodes = [];
+            }, maxReleaseTime * 1000);
+            
+            isPlaying = false;
+            document.getElementById('playButton').style.display = 'inline-block';
+            document.getElementById('stopButton').style.display = 'none';
+        }
+
+        // Update oscillator parameters while playing
+        function updateAudioParameters() {
+            if (isPlaying && oscillators.length > 0) {
+                const oscillatorData = getOscillatorData();
+                
+                // Update frequency and volume for active oscillators
+                oscillatorData.forEach((osc, index) => {
+                    if (osc.enabled && oscillators[index]) {
+                        oscillators[index].frequency.value = osc.frequency;
+                        if (gainNodes[index]) {
+                            gainNodes[index].gain.value = osc.volume;
+                        }
+                    }
+                });
+            }
+        }
+
+        // Initialize Web Audio API for real audio playback
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Play audio using Web Audio API
+        function playAudio() {
+            initAudio();
+            
+            // Stop any playing oscillators
+            stopAudio();
+            
+            const oscillatorData = getOscillatorData();
+            const masterGain = audioContext.createGain();
+            masterGain.connect(audioContext.destination);
+            masterGain.gain.value = 0.7; // Master volume - increased since oscillators are now at 100%
+            
+            oscillatorData.forEach((osc, index) => {
+                if (osc.enabled) {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.type = osc.wave_type;
+                    oscillator.frequency.value = osc.frequency;
+                    
+                    // Apply ADSR envelope
+                    const currentTime = audioContext.currentTime;
+                    const attackTime = osc.adsr.attack;
+                    const decayTime = osc.adsr.decay;
+                    const sustainLevel = osc.adsr.sustain * osc.volume;
+                    const releaseTime = osc.adsr.release;
+                    
+                    // Start at 0 volume
+                    gainNode.gain.setValueAtTime(0, currentTime);
+                    
+                    // Attack: ramp up to full volume
+                    gainNode.gain.linearRampToValueAtTime(osc.volume, currentTime + attackTime);
+                    
+                    // Decay: ramp down to sustain level
+                    gainNode.gain.linearRampToValueAtTime(sustainLevel, currentTime + attackTime + decayTime);
+                    
+                    // Sustain: hold at sustain level (will continue until stopped)
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    oscillator.start();
+                    // Don't set stop time - let it play continuously
+                    
+                    oscillators.push(oscillator);
+                    gainNodes.push(gainNode);
+                }
+            });
+            
+            isPlaying = true;
+            document.getElementById('playButton').style.display = 'none';
+            document.getElementById('stopButton').style.display = 'inline-block';
+        }
+
+        function stopAudio() {
+            if (!isPlaying) return;
+            
+            const currentTime = audioContext.currentTime;
+            const oscillatorData = getOscillatorData();
+            
+            // Apply release envelope to each gain node
+            gainNodes.forEach((gainNode, index) => {
+                if (gainNode && oscillatorData[index]) {
+                    const releaseTime = oscillatorData[index].adsr.release;
+                    // Cancel any scheduled changes and start release from current value
+                    gainNode.gain.cancelScheduledValues(currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0, currentTime + releaseTime);
+                }
+            });
+            
+            // Stop oscillators after release time
+            const maxReleaseTime = Math.max(...oscillatorData.filter(osc => osc.enabled).map(osc => osc.adsr.release));
+            
+            setTimeout(() => {
+                oscillators.forEach(osc => {
+                    try {
+                        osc.stop();
+                    } catch (e) {
+                        // Oscillator might already be stopped
+                    }
+                });
+                oscillators = [];
+                gainNodes = [];
+            }, maxReleaseTime * 1000);
+            
+            isPlaying = false;
+            document.getElementById('playButton').style.display = 'inline-block';
+            document.getElementById('stopButton').style.display = 'none';
+        }
+
+        // Update oscillator parameters while playing
+        function updateAudioParameters() {
+            if (isPlaying && oscillators.length > 0) {
+                const oscillatorData = getOscillatorData();
+                
+                // Update frequency and volume for active oscillators
+                oscillatorData.forEach((osc, index) => {
+                    if (osc.enabled && oscillators[index]) {
+                        oscillators[index].frequency.value = osc.frequency;
+                        if (gainNodes[index]) {
+                            gainNodes[index].gain.value = osc.volume;
+                        }
+                    }
+                });
+            }
+        }
+
+        // ADSR Chart Management
+        class ADSRChart {
+            constructor(chartId, oscillatorNumber) {
+                this.chartId = chartId;
+                this.oscNum = oscillatorNumber;
+                this.chart = document.getElementById(chartId);
+                
+                if (!this.chart) {
+                    console.error(`Chart element ${chartId} not found`);
+                    return;
+                }
+                
+                console.log(`Creating ADSR Chart for OSC${oscillatorNumber}`);
+                
+                // Initialize properties
+                this.isDragging = false;
+                this.dragPoint = null;
+                this.dragKey = null;
+                this.maxTime = 3; // Maximum time in seconds for display
+                
+                // Get ADSR parameters
+                this.attack = parseFloat(document.getElementById(`attack${oscillatorNumber}`).value);
+                this.decay = parseFloat(document.getElementById(`decay${oscillatorNumber}`).value);
+                this.sustain = parseFloat(document.getElementById(`sustain${oscillatorNumber}`).value);
+                this.release = parseFloat(document.getElementById(`release${oscillatorNumber}`).value);
+                
+                // Set up chart styling
+                this.chart.style.position = 'relative';
+                this.chart.style.overflow = 'visible';
+                
+                // Initialize with a delay to ensure layout is complete
+                setTimeout(() => {
+                    this.initChart();
+                }, 100);
+            }
+            
+            initChart() {
+                // Get actual dimensions
+                this.width = this.chart.offsetWidth;
+                this.height = this.chart.offsetHeight;
+                
+                console.log(`ADSR Chart ${this.oscNum} dimensions: ${this.width}x${this.height}`);
+                
+                if (this.width === 0 || this.height === 0) {
+                    console.warn(`Chart ${this.chartId} has zero dimensions, retrying...`);
+                    setTimeout(() => this.initChart(), 100);
+                    return;
+                }
+                
+                this.createControlPoints();
+                this.bindEvents();
+            }
+            
+            init() {
+                this.createControlPoints();
+                this.drawEnvelope();
+                this.bindEvents();
+            }
+            
+            createControlPoints() {
+                // Clear existing points
+                this.chart.innerHTML = '';
+                
+                console.log(`Creating control points for OSC${this.oscNum}`);
+                
+                // Calculate positions based on ADSR values - all time-based for uniformity
+                const padding = 20;
+                const usableWidth = this.width - (2 * padding);
+                const usableHeight = this.height - (2 * padding);
+                
+                const attackX = padding + (this.attack / this.maxTime) * usableWidth * 0.25;
+                const decayX = attackX + (this.decay / this.maxTime) * usableWidth * 0.25;
+                const sustainX = decayX + (this.sustain / this.maxTime) * usableWidth * 0.25;
+                const releaseX = sustainX + (this.release / this.maxTime) * usableWidth * 0.25;
+                
+                // For visual representation, use fixed Y positions for the envelope shape
+                const sustainY = padding + usableHeight * 0.3; // Fixed sustain level for visual
+                
+                // Create control points
+                this.points = {
+                    start: { x: padding, y: this.height - padding, type: 'start' },
+                    attackPeak: { x: Math.max(padding + 20, attackX), y: padding, type: 'attack' },
+                    decayEnd: { x: Math.max(attackX + 20, decayX), y: sustainY, type: 'decay' },
+                    releaseStart: { x: Math.max(decayX + 20, sustainX), y: sustainY, type: 'sustain' },
+                    releaseEnd: { x: Math.min(this.width - padding, releaseX), y: this.height - padding, type: 'release' }
+                };
+                
+                console.log(`Points for OSC${this.oscNum}:`, this.points);
+                
+                // Create DOM elements for draggable points (excluding start point)
+                Object.keys(this.points).forEach(key => {
+                    if (key !== 'start') {
+                        const point = this.points[key];
+                        const element = document.createElement('div');
+                        element.className = 'adsr-control-point';
+                        element.dataset.type = point.type;
+                        element.dataset.key = key;
+                        element.style.position = 'absolute';
+                        element.style.left = (point.x - 6) + 'px';
+                        element.style.top = (point.y - 6) + 'px';
+                        element.style.width = '12px';
+                        element.style.height = '12px';
+                        element.style.background = '#FFB74D';
+                        element.style.border = '2px solid #FFF';
+                        element.style.borderRadius = '50%';
+                        element.style.cursor = 'grab';
+                        element.style.zIndex = '10';
+                        element.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+                        element.title = `${key} - Click and drag to adjust`;
+                        
+                        this.chart.appendChild(element);
+                        console.log(`Created draggable point: ${key} for OSC${this.oscNum}`);
+                    }
+                });
+                
+                this.drawLines();
+                console.log(`OSC${this.oscNum} has ${this.chart.children.length} control elements`);
+            }
+            
+            drawLines() {
+                // Remove existing lines
+                this.chart.querySelectorAll('.adsr-line').forEach(line => line.remove());
+                
+                // Create lines between points
+                const lines = [
+                    { from: 'start', to: 'attackPeak' },
+                    { from: 'attackPeak', to: 'decayEnd' },
+                    { from: 'decayEnd', to: 'releaseStart' },
+                    { from: 'releaseStart', to: 'releaseEnd' }
+                ];
+                
+                lines.forEach(lineData => {
+                    const from = this.points[lineData.from];
+                    const to = this.points[lineData.to];
+                    const line = document.createElement('div');
+                    line.className = 'adsr-line';
+                    
+                    const dx = to.x - from.x;
+                    const dy = to.y - from.y;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                    
+                    line.style.width = length + 'px';
+                    line.style.left = from.x + 'px';
+                    line.style.top = from.y + 'px';
+                    line.style.transform = `rotate(${angle}deg)`;
+                    
+                    this.chart.appendChild(line);
+                });
+            }
+            
+            bindEvents() {
+                console.log(`Binding events for OSC${this.oscNum}`);
+                
+                // Use event delegation for better reliability
+                this.chart.addEventListener('mousedown', (e) => {
+                    const point = e.target.closest('.adsr-control-point');
+                    if (point) {
+                        console.log(`Mouse down on ${point.dataset.key} for OSC${this.oscNum}`);
+                        this.startDragging(point, e);
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                });
+                
+                // Global mouse events
+                const mouseMoveHandler = (e) => {
+                    if (this.isDragging) {
+                        this.handleDrag(e);
+                        e.preventDefault();
+                    }
+                };
+                
+                const mouseUpHandler = (e) => {
+                    if (this.isDragging) {
+                        this.stopDragging();
+                        e.preventDefault();
+                    }
+                };
+                
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+                
+                // Store handlers for cleanup if needed
+                this.mouseMoveHandler = mouseMoveHandler;
+                this.mouseUpHandler = mouseUpHandler;
+                
+                console.log(`Events bound for OSC${this.oscNum}`);
+            }
+            
+            startDragging(pointElement, e) {
+                this.isDragging = true;
+                this.dragPoint = pointElement;
+                this.dragKey = pointElement.dataset.key;
+                pointElement.style.cursor = 'grabbing';
+                pointElement.style.transform = 'scale(1.3)';
+                pointElement.style.zIndex = '20';
+                console.log(`Started dragging ${this.dragKey} for OSC${this.oscNum}`);
+            }
+            
+            stopDragging() {
+                if (this.dragPoint) {
+                    this.dragPoint.style.cursor = 'grab';
+                    this.dragPoint.style.transform = 'scale(1)';
+                    this.dragPoint.style.zIndex = '10';
+                }
+                this.isDragging = false;
+                this.dragPoint = null;
+                this.dragKey = null;
+                console.log(`Stopped dragging for OSC${this.oscNum}`);
+            }
+            
+            handleDrag(e) {
+                if (!this.isDragging || !this.dragPoint) return;
+                
+                const rect = this.chart.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                let y = e.clientY - rect.top;
+                
+                // Constrain to chart boundaries
+                const padding = 15;
+                x = Math.max(padding, Math.min(this.width - padding, x));
+                y = Math.max(padding, Math.min(this.height - padding, y));
+                
+                const type = this.dragPoint.dataset.type;
+                const key = this.dragKey;
+                
+                // Update point position based on type with proper constraints
+                if (type === 'attack') {
+                    // Attack peak can move in both X and Y
+                    this.points.attackPeak.x = Math.max(this.points.start.x + 20, Math.min(this.width * 0.3, x));
+                    this.points.attackPeak.y = Math.max(padding, Math.min(this.height * 0.5, y));
+                } else if (type === 'decay') {
+                    // Decay end point: X can move, Y affects visual sustain level
+                    this.points.decayEnd.x = Math.max(this.points.attackPeak.x + 20, Math.min(this.width * 0.55, x));
+                    this.points.decayEnd.y = Math.max(padding, Math.min(this.height - padding, y));
+                    // Update sustain level to match visually
+                    this.points.releaseStart.y = this.points.decayEnd.y;
+                } else if (type === 'sustain') {
+                    // Sustain point: X controls sustain time duration
+                    this.points.releaseStart.x = Math.max(this.points.decayEnd.x + 20, Math.min(this.width * 0.8, x));
+                } else if (type === 'release') {
+                    // Release end: X controls release time duration
+                    this.points.releaseEnd.x = Math.max(this.points.releaseStart.x + 20, Math.min(this.width - padding, x));
+                }
+                
+                // Update visual position
+                this.dragPoint.style.left = (this.points[key].x - 6) + 'px';
+                this.dragPoint.style.top = (this.points[key].y - 6) + 'px';
+                
+                this.drawLines();
+                this.updateValues();
+            }
+            
+            updateValues() {
+                // Calculate new ADSR values from positions - all in time units for uniformity
+                this.attack = Math.max(0.01, (this.points.attackPeak.x - 10) / (this.width - 20) * this.maxTime);
+                this.decay = Math.max(0.01, (this.points.decayEnd.x - this.points.attackPeak.x) / (this.width - 20) * this.maxTime);
+                this.sustain = Math.max(0.01, (this.points.releaseStart.x - this.points.decayEnd.x) / (this.width - 20) * this.maxTime);
+                this.release = Math.max(0.01, (this.points.releaseEnd.x - this.points.releaseStart.x) / (this.width - 20) * this.maxTime);
+                
+                // Clamp values to reasonable ranges (all in seconds)
+                this.attack = Math.max(0.01, Math.min(2, this.attack));
+                this.decay = Math.max(0.01, Math.min(2, this.decay));
+                this.sustain = Math.max(0.01, Math.min(3, this.sustain));
+                this.release = Math.max(0.01, Math.min(3, this.release));
+                
+                // Update hidden inputs and displays
+                document.getElementById(`attack${this.oscNum}`).value = this.attack;
+                document.getElementById(`decay${this.oscNum}`).value = this.decay;
+                document.getElementById(`sustain${this.oscNum}`).value = this.sustain;
+                document.getElementById(`release${this.oscNum}`).value = this.release;
+                
+                document.getElementById(`attack${this.oscNum}-display`).textContent = this.attack.toFixed(2) + 's';
+                document.getElementById(`decay${this.oscNum}-display`).textContent = this.decay.toFixed(2) + 's';
+                document.getElementById(`sustain${this.oscNum}-display`).textContent = this.sustain.toFixed(2) + 's';
+                document.getElementById(`release${this.oscNum}-display`).textContent = this.release.toFixed(2) + 's';
+                
+                // Update visualization and audio
+                updateVisualization();
+                if (isPlaying) {
+                    playAudio(); // Restart with new ADSR
+                }
+            }
+        }
+
+        // Initialize ADSR charts
+        let adsrCharts = [];
+
+        // Music Keyboard functionality
+        class MusicKeyboard {
+            constructor() {
+                this.activeNotes = new Map(); // Track active notes and their oscillators
+                this.baseOctave = 3;
+                this.volume = 1.0;
+                this.holdMode = false; // Hold mode state
+                
+                // Note frequencies (C4 = 261.63 Hz)
+                this.noteFrequencies = {
+                    'C': 261.63,
+                    'C#': 277.18,
+                    'D': 293.66,
+                    'D#': 311.13,
+                    'E': 329.63,
+                    'F': 349.23,
+                    'F#': 369.99,
+                    'G': 392.00,
+                    'G#': 415.30,
+                    'A': 440.00,
+                    'A#': 466.16,
+                    'B': 493.88
+                };
+                
+                this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                this.whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+                this.blackKeys = ['C#', 'D#', 'F#', 'G#', 'A#'];
+                
+                // Keyboard mappings
+                this.keyMap = {
+                    'a': 'C', 'w': 'C#', 's': 'D', 'e': 'D#', 'd': 'E', 'f': 'F',
+                    't': 'F#', 'g': 'G', 'y': 'G#', 'h': 'A', 'u': 'A#', 'j': 'B',
+                    'k': 'C+', 'o': 'C#+', 'l': 'D+', 'p': 'D#+', ';': 'E+', '\'': 'F+',
+                    ']': 'F#+', 'Enter': 'G+', '\\': 'G#+', 'ArrowUp': 'A+', '=': 'A#+', 'ArrowDown': 'B+'
+                };
+            }
+            
+            getFrequency(note, octave) {
+                return this.noteFrequencies[note] * Math.pow(2, octave - 4);
+            }
+            
+            createKeyboard() {
+                const keyboard = document.getElementById('keyboard');
+                keyboard.innerHTML = '';
+                
+                // Create 3 octaves
+                for (let octave = 0; octave < 3; octave++) {
+                    const octaveContainer = document.createElement('div');
+                    octaveContainer.style.position = 'relative';
+                    octaveContainer.style.display = 'flex';
+                    
+                    // Create white keys first
+                    this.whiteKeys.forEach((note, index) => {
+                        const key = document.createElement('div');
+                        key.className = 'key white-key';
+                        key.dataset.note = note;
+                        key.dataset.octave = this.baseOctave + octave;
+                        key.textContent = note + (this.baseOctave + octave);
+                        
+                        key.addEventListener('mousedown', (e) => this.playNote(note, this.baseOctave + octave));
+                        key.addEventListener('mouseup', (e) => {
+                            if (!this.holdMode) this.stopNote(note, this.baseOctave + octave);
+                        });
+                        key.addEventListener('mouseleave', (e) => {
+                            if (!this.holdMode) this.stopNote(note, this.baseOctave + octave);
+                        });
+                        
+                        octaveContainer.appendChild(key);
+                    });
+                    
+                    // Create black keys and position them
+                    this.blackKeys.forEach((note, index) => {
+                        const key = document.createElement('div');
+                        key.className = 'key black-key';
+                        key.dataset.note = note;
+                        key.dataset.octave = this.baseOctave + octave;
+                        key.textContent = note + (this.baseOctave + octave);
+                        
+                        // Position black keys between white keys
+                        const positions = [25, 55, 115, 145, 175]; // Positions for C#, D#, F#, G#, A#
+                        key.style.left = positions[index] + 'px';
+                        
+                        key.addEventListener('mousedown', (e) => {
+                            e.stopPropagation();
+                            this.playNote(note, this.baseOctave + octave);
+                        });
+                        key.addEventListener('mouseup', (e) => {
+                            if (!this.holdMode) this.stopNote(note, this.baseOctave + octave);
+                        });
+                        key.addEventListener('mouseleave', (e) => {
+                            if (!this.holdMode) this.stopNote(note, this.baseOctave + octave);
+                        });
+                        
+                        octaveContainer.appendChild(key);
+                    });
+                    
+                    keyboard.appendChild(octaveContainer);
+                }
+            }
+            
+            playNote(note, octave) {
+                const noteKey = `${note}${octave}`;
+                
+                // In hold mode, toggle note on/off
+                if (this.holdMode && this.activeNotes.has(noteKey)) {
+                    this.forceStopNote(note, octave);
+                    return;
+                }
+                
+                if (this.activeNotes.has(noteKey)) return; // Already playing
+                
+                const frequency = this.getFrequency(note, octave);
+                console.log(`Playing ${noteKey} at ${frequency.toFixed(2)} Hz`);
+                
+                // Create audio context if needed
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                // Get all enabled oscillators settings
+                const oscData = getOscillatorData();
+                const enabledOscillators = oscData.filter(osc => osc.enabled);
+                
+                if (enabledOscillators.length === 0) {
+                    console.log('No oscillators enabled, cannot play note');
+                    return;
+                }
+                
+                // Create oscillators for each enabled oscillator setting
+                const noteOscillators = [];
+                const noteGainNodes = [];
+                const masterGain = audioContext.createGain();
+                
+                enabledOscillators.forEach((oscSettings, index) => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    // Set oscillator properties from the mixed oscillator settings
+                    oscillator.type = oscSettings.wave_type;
+                    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                    
+                    // Apply individual oscillator volume
+                    gainNode.gain.setValueAtTime(oscSettings.volume, audioContext.currentTime);
+                    
+                    // Connect: oscillator -> gainNode -> masterGain
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    noteOscillators.push(oscillator);
+                    noteGainNodes.push(gainNode);
+                });
+                
+                // Connect master gain to destination
+                masterGain.connect(audioContext.destination);
+                
+                // Apply ADSR envelope to master gain
+                const firstOscSettings = enabledOscillators[0];
+                const adsr = firstOscSettings.adsr || { attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.3 };
+                const currentTime = audioContext.currentTime;
+                
+                // Master volume based on keyboard volume and mixed oscillator approach
+                const masterVolume = this.volume * 0.7; // Match the master volume from main synthesis
+                
+                masterGain.gain.setValueAtTime(0, currentTime);
+                masterGain.gain.linearRampToValueAtTime(masterVolume, currentTime + adsr.attack);
+                masterGain.gain.linearRampToValueAtTime(masterVolume * adsr.sustain, currentTime + adsr.attack + adsr.decay);
+                
+                // Start all oscillators
+                noteOscillators.forEach(osc => osc.start());
+                
+                // Store the note info with all oscillators
+                this.activeNotes.set(noteKey, { 
+                    oscillators: noteOscillators, 
+                    gainNodes: noteGainNodes,
+                    masterGain: masterGain,
+                    adsr, 
+                    frequency 
+                });
+                
+                // Visual feedback
+                const keyElement = document.querySelector(`[data-note="${note}"][data-octave="${octave}"]`);
+                if (keyElement) {
+                    keyElement.classList.add('active');
+                }
+                
+                // Update frequency display
+                this.updateFrequencyDisplay();
+            }
+            
+            stopNote(note, octave) {
+                // In hold mode, don't stop notes on key release
+                if (this.holdMode) return;
+                
+                const noteKey = `${note}${octave}`;
+                const noteInfo = this.activeNotes.get(noteKey);
+                
+                if (!noteInfo) return;
+                
+                console.log(`Stopping ${noteKey}`);
+                
+                const { oscillators, gainNodes, masterGain, adsr } = noteInfo;
+                const currentTime = audioContext.currentTime;
+                
+                // Apply release envelope to master gain
+                masterGain.gain.cancelScheduledValues(currentTime);
+                masterGain.gain.linearRampToValueAtTime(0, currentTime + adsr.release);
+                
+                // Stop all oscillators after release
+                setTimeout(() => {
+                    try {
+                        oscillators.forEach(osc => osc.stop());
+                    } catch (e) {
+                        // Already stopped
+                    }
+                }, adsr.release * 1000);
+                
+                this.activeNotes.delete(noteKey);
+                
+                // Remove visual feedback
+                const keyElement = document.querySelector(`[data-note="${note}"][data-octave="${octave}"]`);
+                if (keyElement) {
+                    keyElement.classList.remove('active');
+                }
+                
+                // Update frequency display
+                this.updateFrequencyDisplay();
+            }
+            
+            forceStopNote(note, octave) {
+                const noteKey = `${note}${octave}`;
+                const noteInfo = this.activeNotes.get(noteKey);
+                
+                if (!noteInfo) return;
+                
+                console.log(`Force stopping ${noteKey}`);
+                
+                const { oscillators, gainNodes, masterGain, adsr } = noteInfo;
+                const currentTime = audioContext.currentTime;
+                
+                // Apply release envelope to master gain
+                masterGain.gain.cancelScheduledValues(currentTime);
+                masterGain.gain.linearRampToValueAtTime(0, currentTime + adsr.release);
+                
+                // Stop all oscillators after release
+                setTimeout(() => {
+                    try {
+                        oscillators.forEach(osc => osc.stop());
+                    } catch (e) {
+                        // Already stopped
+                    }
+                }, adsr.release * 1000);
+                
+                this.activeNotes.delete(noteKey);
+                
+                // Remove visual feedback
+                const keyElement = document.querySelector(`[data-note="${note}"][data-octave="${octave}"]`);
+                if (keyElement) {
+                    keyElement.classList.remove('active');
+                }
+                
+                // Update frequency display
+                this.updateFrequencyDisplay();
+            }
+            
+            toggleHoldMode() {
+                this.holdMode = !this.holdMode;
+                const holdButton = document.getElementById('holdButton');
+                
+                if (this.holdMode) {
+                    holdButton.textContent = '🔓 Hold: ON';
+                    holdButton.classList.add('active');
+                } else {
+                    holdButton.textContent = '🔒 Hold: OFF';
+                    holdButton.classList.remove('active');
+                    // When turning off hold mode, stop all currently playing notes
+                    this.stopAllNotes();
+                }
+                
+                console.log(`Hold mode: ${this.holdMode ? 'ON' : 'OFF'}`);
+            }
+
+            stopAllNotes() {
+                this.activeNotes.forEach((noteInfo, noteKey) => {
+                    const [note, octave] = [noteKey.slice(0, -1), parseInt(noteKey.slice(-1))];
+                    this.forceStopNote(note, octave);
+                });
+            }
+            
+            updateFrequencyDisplay() {
+                const frequencyContainer = document.getElementById('activeFrequencies');
+                
+                if (this.activeNotes.size === 0) {
+                    frequencyContainer.innerHTML = '<span class="no-notes">No notes playing</span>';
+                    // Update visualization when no notes are playing
+                    updateVisualization();
+                    return;
+                }
+                
+                // Sort notes by frequency for consistent display order
+                const sortedNotes = Array.from(this.activeNotes.entries())
+                    .sort((a, b) => a[1].frequency - b[1].frequency);
+                
+                frequencyContainer.innerHTML = sortedNotes
+                    .map(([noteKey, noteInfo]) => {
+                        const frequency = noteInfo.frequency.toFixed(1);
+                        return `<div class="frequency-note">${noteKey}: ${frequency} Hz</div>`;
+                    })
+                    .join('');
+                
+                // Immediate visual feedback - show approximate waveform while waiting for server
+                this.updateLocalWaveform();
+                
+                // Update waveform visualization when notes change
+                updateVisualization();
+            }
+            
+            // Local approximate waveform update for immediate feedback
+            updateLocalWaveform() {
+                if (this.activeNotes.size === 0) return;
+                
+                // Generate a simple approximate mixed waveform locally
+                const sampleRate = 1000; // Lower sample rate for preview
+                const duration = 0.1; // 100ms preview
+                const samples = Math.floor(sampleRate * duration);
+                const timeData = [];
+                const amplitudeData = [];
+                
+                for (let i = 0; i < samples; i++) {
+                    const t = i / sampleRate;
+                    // For keyboard preview, use time in milliseconds
+                    timeData.push(t * 1000);  // Convert to milliseconds
+                    
+                    let amplitude = 0;
+                    this.activeNotes.forEach(noteInfo => {
+                        // Simple sine wave approximation
+                        amplitude += 0.3 * Math.sin(2 * Math.PI * noteInfo.frequency * t);
+                    });
+                    
+                    // Normalize by number of notes to prevent clipping
+                    amplitude = amplitude / Math.max(1, this.activeNotes.size);
+                    amplitudeData.push(amplitude);
+                }
+                
+                // Charts have been removed - local preview no longer available
+            }
+            
+            handleKeyDown(event) {
+                const key = event.key.toLowerCase();
+                if (this.keyMap[key] && !event.repeat) {
+                    let note = this.keyMap[key];
+                    let octave = this.baseOctave;
+                    
+                    // Handle upper octave keys
+                    if (note.includes('+')) {
+                        note = note.replace('+', '');
+                        octave = this.baseOctave + 1;
+                    }
+                    
+                    this.playNote(note, octave);
+                    event.preventDefault();
+                }
+            }
+            
+            handleKeyUp(event) {
+                const key = event.key.toLowerCase();
+                if (this.keyMap[key]) {
+                    let note = this.keyMap[key];
+                    let octave = this.baseOctave;
+                    
+                    if (note.includes('+')) {
+                        note = note.replace('+', '');
+                        octave = this.baseOctave + 1;
+                    }
+                    
+                    this.stopNote(note, octave);
+                    event.preventDefault();
+                }
+            }
+        }
+
+        // Global keyboard instance
+        let musicKeyboard;
+
+        function initKeyboard() {
+            // Initialize music keyboard
+            musicKeyboard = new MusicKeyboard();
+            window.musicKeyboard = musicKeyboard; // Make globally accessible
+            musicKeyboard.createKeyboard();
+            
+            // Keyboard event listeners
+            document.addEventListener('keydown', (e) => musicKeyboard.handleKeyDown(e));
+            document.addEventListener('keyup', (e) => musicKeyboard.handleKeyUp(e));
+            
+            // Hold button
+            document.getElementById('holdButton').addEventListener('click', () => {
+                musicKeyboard.toggleHoldMode();
+            });
+            
+            // Octave selector
+            document.getElementById('keyboardOctave').addEventListener('change', (e) => {
+                musicKeyboard.baseOctave = parseInt(e.target.value);
+                musicKeyboard.stopAllNotes();
+                musicKeyboard.createKeyboard();
+            });
+            
+            // Volume control
+            const volumeSlider = document.getElementById('keyboardVolume');
+            const volumeDisplay = document.getElementById('keyboardVolumeDisplay');
+            
+            volumeSlider.addEventListener('input', (e) => {
+                musicKeyboard.volume = parseFloat(e.target.value);
+                volumeDisplay.textContent = Math.round(musicKeyboard.volume * 100) + '%';
+            });
+            
+            // Update rate control
+            document.getElementById('updateRate').addEventListener('change', (e) => {
+                updateThrottleRate = parseInt(e.target.value);
+                console.log(`Waveform update rate changed to ${updateThrottleRate}ms`);
+            });
+        }
+
+        // Event listeners for sliders and controls
+        function setupEventListeners() {
+            // Frequency sliders and inputs
+            ['freq1', 'freq2', 'freq3'].forEach(id => {
+                const slider = document.getElementById(id);
+                const input = document.getElementById(id + '-input');
+                const display = document.getElementById(id + '-value');
+                
+                // Slider input event
+                slider.addEventListener('input', () => {
+                    const value = slider.value;
+                    input.value = value;
+                    display.textContent = formatFrequency(value);
+                    updateVisualization();
+                    updateAudioParameters(); // Update audio in real-time
+                });
+                
+                // Number input event
+                input.addEventListener('input', () => {
+                    let value = parseFloat(input.value);
+                    
+                    // Clamp value to valid range
+                    if (value < 5) value = 5;
+                    if (value > 21000) value = 21000;
+                    
+                    // Update input value if it was clamped
+                    if (input.value != value) {
+                        input.value = value;
+                    }
+                    
+                    slider.value = value;
+                    display.textContent = formatFrequency(value);
+                    updateVisualization();
+                    updateAudioParameters(); // Update audio in real-time
+                });
+                
+                // Handle blur event to ensure valid values
+                input.addEventListener('blur', () => {
+                    let value = parseFloat(input.value);
+                    if (isNaN(value) || value < 5) {
+                        value = 5;
+                    } else if (value > 21000) {
+                        value = 21000;
+                    }
+                    
+                    input.value = value;
+                    slider.value = value;
+                    display.textContent = formatFrequency(value);
+                    updateVisualization();
+                    updateAudioParameters();
+                });
+            });
+
+            // Helper function to format frequency display
+            function formatFrequency(freq) {
+                freq = parseFloat(freq);
+                if (freq >= 1000) {
+                    return (freq / 1000).toFixed(1) + ' kHz';
+                } else {
+                    return freq.toFixed(0) + ' Hz';
+                }
+            }
+
+            // Volume sliders
+            ['vol1', 'vol2', 'vol3'].forEach(id => {
+                const slider = document.getElementById(id);
+                const display = document.getElementById(id + '-value');
+                
+                slider.addEventListener('input', () => {
+                    display.textContent = Math.round(slider.value * 100) + '%';
+                    updateVisualization();
+                    updateAudioParameters(); // Update audio in real-time
+                });
+            });
+
+            // Wave type selectors
+            ['wave1', 'wave2', 'wave3'].forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    updateVisualization();
+                    // Note: Wave type changes require restarting audio
+                    if (isPlaying) {
+                        playAudio(); // Restart with new wave type
+                    }
+                });
+            });
+
+            // Enable checkboxes
+            ['osc1-enable', 'osc2-enable', 'osc3-enable'].forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    updateVisualization();
+                    // Note: Enable/disable changes require restarting audio
+                    if (isPlaying) {
+                        playAudio(); // Restart with new configuration
+                    }
+                });
+            });
+
+            // Play button
+            document.getElementById('playButton').addEventListener('click', () => {
+                if (!isPlaying) {
+                    playAudio();
+                }
+            });
+
+            // Stop button
+            document.getElementById('stopButton').addEventListener('click', () => {
+                if (isPlaying) {
+                    stopAudio();
+                }
+            });
+            
+            // ADSR bypass checkbox for mixed waveform
+            const adsrBypassCheckbox = document.getElementById('bypassADSR');
+            if (adsrBypassCheckbox) {
+                adsrBypassCheckbox.addEventListener('change', () => {
+                    // ADSR bypass functionality can be kept for audio synthesis
+                    // but no longer affects visualization since charts are removed
+                });
+            }
+            
+            // Zoom controls have been removed along with Individual Waveforms
+        }
+
+        // Function to format frequency for display
+        function formatFrequency(freq) {
+            if (freq >= 1000) {
+                return `${(freq / 1000).toFixed(2)} kHz`;
+            } else {
+                return `${freq.toFixed(0)} Hz`;
+            }
+        }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Content Loaded - initializing app...');
+            
+            setupEventListeners();
+            initKeyboard();
+            initWaveformMonitor(); // Initialize the waveform monitor
+            
+            // Create ADSR charts with proper timing
+            setTimeout(() => {
+                console.log('Creating ADSR charts...');
+                
+                // Clear any existing charts
+                adsrCharts = [];
+                
+                // Initialize each chart
+                const chart1 = new ADSRChart('adsr-chart-1', 1);
+                const chart2 = new ADSRChart('adsr-chart-2', 2);
+                const chart3 = new ADSRChart('adsr-chart-3', 3);
+                
+                adsrCharts.push(chart1, chart2, chart3);
+                
+                console.log(`Created ${adsrCharts.length} ADSR charts`);
+            }, 300); // Increased delay to ensure layout is complete
+        });
+    </script>
+</body>
+</html>
