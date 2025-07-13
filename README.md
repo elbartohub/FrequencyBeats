@@ -2,6 +2,8 @@
 
 A web-based educational audio frequency mixer to help people understand how fundamental frequencies work with harmony and how beat effects occur when frequencies interact.
 
+![alt text](image.png)
+
 ## Educational Purpose
 
 This application was created to make acoustic phenomena more accessible and understandable:
